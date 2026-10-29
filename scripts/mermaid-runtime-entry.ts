@@ -28,6 +28,7 @@ globalThis.__MATH_TIMELINE_RENDER_MERMAID__ = async ({
     securityLevel: "strict",
     suppressErrorRendering: true,
     theme: colorScheme === "dark" ? "dark" : "default",
+    htmlLabels: false,
     secure: [
       "secure",
       "securityLevel",
@@ -38,6 +39,7 @@ globalThis.__MATH_TIMELINE_RENDER_MERMAID__ = async ({
       "theme",
       "themeVariables",
       "themeCSS",
+      "htmlLabels",
     ],
     flowchart: { htmlLabels: false },
     class: { htmlLabels: false },

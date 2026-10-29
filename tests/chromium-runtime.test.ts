@@ -79,6 +79,8 @@ esac
         expect(output.height).toBeGreaterThan(20);
       }
       expect(light.svg).toContain("Start");
+      expect(light.svg).not.toContain("<foreignObject");
+      expect(light.svg).toMatch(/<text[^>]*>[\s\S]*Start[\s\S]*<\/text>/);
       expect(dark.svg).toContain("Alice");
       expect(light.svg).not.toBe(dark.svg);
     } finally {

@@ -60,6 +60,96 @@ try {
   await page.evaluate(() => window.setMathTheme("light"));
   await page.waitForFunction(() => [...document.querySelectorAll('img[src^="data:image/png"]')].every((image) => image.complete && image.naturalWidth > 0));
   await page.screenshot({ path: path.join(root, ".smoke/compact-web.png"), fullPage: true });
+
+  await page.setViewportSize({ width: 1200, height: 900 });
+  await page.evaluate(() => window.setMathSource(window.mixedMarkdown, "complete"));
+  const diagram = page.getByRole("img", { name: "Mermaid diagram" });
+  await diagram.waitFor({ timeout: 5_000 });
+  await page.getByRole("img", { name: /arg/ }).waitFor();
+  await page.screenshot({ path: path.join(root, ".smoke/mermaid-inline.png"), fullPage: true });
+  assert.equal((await page.locator("#root").innerText()).includes("flowchart LR"), false);
+  for (const label of ["Zoom in", "Zoom out", "Reset zoom", "View source", "Fullscreen"]) {
+    assert.equal(await page.getByRole("button", { name: label, exact: true }).count(), 1);
+  }
+
+  const inlineCanvas = page.getByTestId("mermaid-inline-canvas");
+  const inlineContent = page.getByTestId("mermaid-inline-content");
+  await inlineCanvas.hover();
+  const transform = (locator) => locator.evaluate((element) => getComputedStyle(element).transform);
+  const fittedTransform = await transform(inlineContent);
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  await page.waitForFunction(
+    (before) => getComputedStyle(document.querySelector('[data-testid="mermaid-inline-content"]')).transform !== before,
+    fittedTransform,
+  );
+  assert.notEqual(await transform(inlineContent), fittedTransform);
+  await page.getByRole("button", { name: "Reset zoom", exact: true }).click();
+  await page.waitForFunction(
+    (fitted) => getComputedStyle(document.querySelector('[data-testid="mermaid-inline-content"]')).transform === fitted,
+    fittedTransform,
+  );
+  assert.equal(await transform(inlineContent), fittedTransform);
+  await inlineCanvas.hover();
+  await page.mouse.wheel(0, -80);
+  assert.equal(await transform(inlineContent), fittedTransform);
+  await page.keyboard.down("Control");
+  await page.mouse.wheel(0, -80);
+  await page.keyboard.up("Control");
+  await page.waitForFunction(
+    (before) => getComputedStyle(document.querySelector('[data-testid="mermaid-inline-content"]')).transform !== before,
+    fittedTransform,
+  );
+  assert.notEqual(await transform(inlineContent), fittedTransform);
+  await inlineCanvas.dblclick();
+  await page.waitForFunction(
+    (fitted) => getComputedStyle(document.querySelector('[data-testid="mermaid-inline-content"]')).transform === fitted,
+    fittedTransform,
+  );
+  assert.equal(await transform(inlineContent), fittedTransform);
+
+  await page.getByRole("button", { name: "View source", exact: true }).click();
+  await page.getByText("flowchart LR", { exact: false }).waitFor();
+  assert.equal(await diagram.count(), 0);
+  assert.equal(await page.getByRole("button", { name: "View diagram", exact: true }).count(), 1);
+  await page.screenshot({ path: path.join(root, ".smoke/mermaid-source.png"), fullPage: true });
+  await page.getByRole("button", { name: "View diagram", exact: true }).click();
+  await diagram.waitFor();
+
+  const imageSource = (locator) => locator.evaluate((element) => {
+    const image = element.matches("img") ? element : element.querySelector("img");
+    return image?.getAttribute("src") ?? getComputedStyle(element).backgroundImage;
+  });
+  const lightDiagram = await imageSource(page.getByTestId("mermaid-image"));
+  await page.evaluate(() => window.setMathTheme("dark"));
+  await page.waitForFunction((previous) => {
+    const element = document.querySelector('[data-testid="mermaid-image"]');
+    const image = element?.matches("img") ? element : element?.querySelector("img");
+    const current = image?.getAttribute("src") ?? (element ? getComputedStyle(element).backgroundImage : null);
+    return Boolean(current && current !== previous);
+  }, lightDiagram);
+
+  await page.getByRole("button", { name: "Fullscreen", exact: true }).click();
+  await page.getByTestId("mermaid-fullscreen").waitFor();
+  const fullscreenCanvas = page.getByTestId("mermaid-fullscreen-canvas");
+  const fullscreenContent = page.getByTestId("mermaid-fullscreen-content");
+  const fullscreenFit = await transform(fullscreenContent);
+  await fullscreenCanvas.hover();
+  await page.mouse.wheel(0, -80);
+  await page.waitForFunction(
+    (before) => getComputedStyle(document.querySelector('[data-testid="mermaid-fullscreen-content"]')).transform !== before,
+    fullscreenFit,
+  );
+  assert.notEqual(await transform(fullscreenContent), fullscreenFit);
+  await page.screenshot({ path: path.join(root, ".smoke/mermaid-fullscreen.png"), fullPage: true });
+  await page.keyboard.press("Escape");
+  assert.equal(await page.getByTestId("mermaid-fullscreen").count(), 0);
+
+  await page.getByRole("button", { name: "Fullscreen", exact: true }).click();
+  await page.getByTestId("mermaid-fullscreen-canvas").click({ position: { x: 4, y: 4 } });
+  assert.equal(await page.getByTestId("mermaid-fullscreen").count(), 0);
+  await page.getByRole("button", { name: "Copy source", exact: true }).click();
+  assert.equal(await page.evaluate(() => window.copiedSource === window.mixedMarkdown), true);
+
   const streaming = String.raw`开头 $x^2$，流式分式 $$\frac{1}{2}$$，结尾文字。`;
   for (let length = 1; length <= streaming.length; length++) {
     await page.evaluate((value) => window.setMathSource(value), streaming.slice(0, length));
@@ -68,7 +158,7 @@ try {
   assert.ok((await page.locator("#root").innerText()).includes("结尾文字"));
   assert.deepEqual(errors, []);
   console.log(JSON.stringify({ browser: "Chromium", compiledClient: "passed", compiledServerRpc: "passed",
-    desktop: "light/dark", compactWeb: "393px", cjkText: "passed", streaming: "passed", copySource: "passed", browserErrors: errors,
+    desktop: "light/dark", compactWeb: "393px", cjkText: "passed", streaming: "passed", mermaid: "interactive", copySource: "passed", browserErrors: errors,
     note: "Compact web is not an Android native-device test", screenshots: ".smoke/*.png" }));
 } finally {
   await browser.close();

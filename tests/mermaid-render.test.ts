@@ -210,6 +210,10 @@ describe("bounded Mermaid rendering", () => {
     const renderer = createMermaidRenderer(runtime, {
       rasterize: async (_svg, options) => {
         if (options?.fitTo?.mode !== "zoom") throw new Error("Expected zoom fit");
+        if (!options.font || !("fontBuffers" in options.font)) {
+          throw new Error("Expected bundled font buffers");
+        }
+        expect(options.font.fontBuffers.length).toBeGreaterThan(0);
         densities.push(options.fitTo.value);
         return new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
       },

@@ -11,6 +11,7 @@ import {
   processColor,
   type TextStyle,
 } from "react-native";
+import { isMermaidFence } from "../shared/mermaid-source.js";
 import type { MathMessage } from "../shared/message.js";
 import Markdown, {
   MarkdownIt,
@@ -20,6 +21,7 @@ import Markdown, {
   type RenderRules,
 } from "./generated/markdown.js";
 import { Formula } from "./formula.js";
+import { MermaidDiagram } from "./mermaid/diagram.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -30,6 +32,19 @@ const markdown = new MarkdownIt({
 // The dependency's runtime retains token.meta, but its public ASTNode type
 // omits sourceMeta. Narrow that field instead of serializing TeX into markup.
 type MathNode = ASTNode & { sourceMeta?: unknown };
+type FenceNode = ASTNode & { sourceInfo?: unknown };
+
+function diagramColorScheme(background: string): "light" | "dark" {
+  const match = /^#([\da-f]{6})/i.exec(background);
+  if (!match) return "dark";
+  const value = Number.parseInt(match[1]!, 16);
+  const red = (value >> 16) & 0xff;
+  const green = (value >> 8) & 0xff;
+  const blue = value & 0xff;
+  return red * 0.299 + green * 0.587 + blue * 0.114 >= 140
+    ? "light"
+    : "dark";
+}
 
 function colorHex(color: TextStyle["color"], fallback: string): string {
   if (
@@ -54,7 +69,7 @@ const MemoizedMathMessage = memo(
     theme,
     layout,
   }: PluginTimelineItemProps<MathMessage>) {
-    const { text } = item.data;
+    const { text, phase } = item.data;
     const colors = theme.colors;
     const toast = useToast();
     const [width, setWidth] = useState(0);
@@ -199,19 +214,42 @@ const MemoizedMathMessage = memo(
             {node.content}
           </Text>
         ),
-        fence: (node, _children, _parents, ruleStyles, inherited = {}) => (
-          <Text
-            key={node.key}
-            selectable
-            style={[
-              inherited,
-              ruleStyles.fence,
-              { fontFamily: Platform.OS === "ios" ? "Courier" : "monospace" },
-            ]}
-          >
-            {node.content.replace(/\n$/, "")}
-          </Text>
-        ),
+        fence: (node: FenceNode, _children, _parents, ruleStyles, inherited = {}) => {
+          const info = typeof node.sourceInfo === "string" ? node.sourceInfo : "";
+          if (isMermaidFence(info)) {
+            return (
+              <MermaidDiagram
+                key={node.key}
+                colors={colors}
+                colorScheme={diagramColorScheme(colors.surface0)}
+                hostId={host.id}
+                maxWidth={Math.max(1, width - 48)}
+                phase={phase}
+                source={node.content.replace(/\n$/, "")}
+                sourceStyle={[
+                  inherited,
+                  ruleStyles.fence,
+                  {
+                    fontFamily: Platform.OS === "ios" ? "Courier" : "monospace",
+                  },
+                ]}
+              />
+            );
+          }
+          return (
+            <Text
+              key={node.key}
+              selectable
+              style={[
+                inherited,
+                ruleStyles.fence,
+                { fontFamily: Platform.OS === "ios" ? "Courier" : "monospace" },
+              ]}
+            >
+              {node.content.replace(/\n$/, "")}
+            </Text>
+          );
+        },
         code_block: (node, _children, _parents, ruleStyles, inherited = {}) => (
           <Text
             key={node.key}
@@ -226,7 +264,7 @@ const MemoizedMathMessage = memo(
           </Text>
         ),
       };
-    }, [colors.foreground, host.id, width, onLinkPress]);
+    }, [colors, host.id, width, onLinkPress, phase]);
 
     const copySource = useCallback(async () => {
       try {
@@ -275,8 +313,11 @@ const MemoizedMathMessage = memo(
     const b = next.theme.colors;
     return (
       previous.item.data.text === next.item.data.text &&
+      previous.item.data.phase === next.item.data.phase &&
       previous.host.id === next.host.id &&
       previous.layout.compact === next.layout.compact &&
+      previous.layout.platform === next.layout.platform &&
+      a.surface0 === b.surface0 &&
       a.foreground === b.foreground &&
       a.foregroundMuted === b.foregroundMuted &&
       a.surface1 === b.surface1 &&
