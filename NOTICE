@@ -9,6 +9,11 @@ Paseo is Copyright 2025-present Mohamed Boudra, Apache-2.0.
 The build-time stable Markdown node-key adaptation follows:
 https://github.com/getpaseo/paseo/blob/c43df5d4c398571f62584b4ad5a629b5fd3b4599/patches/react-native-markdown-display%2B7.0.2.patch
 
+The Mermaid render state, request coalescing, and portable viewport geometry
+adapt Paseo's Apache-2.0 implementations at commit
+ab10a6694ccf068959d1a6b67b6c915e21a9fe91:
+https://github.com/getpaseo/paseo/tree/ab10a6694ccf068959d1a6b67b6c915e21a9fe91/packages/app/src/components
+
 Runtime dependency licenses remain in their npm packages and generated bundles:
 react-native-markdown-display (MIT), markdown-it (MIT), MathJax (Apache-2.0),
 resvg (MPL-2.0), and their respective dependencies. The unmodified resvg WASM
