@@ -1,3 +1,4 @@
+// Modified in 2026 for the math-timeline adaptation; see NOTICE.
 import assert from "node:assert/strict";
 import { mkdir, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";

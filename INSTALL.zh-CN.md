@@ -1,6 +1,6 @@
 # 安装说明
 
-这个压缩包用于把 `math-timeline` 直接分享给其他 Paseo 用户。插件支持 Paseo `>=0.11.0 <1.0.0`。
+`math-timeline` 可以直接从公开 GitHub 仓库安装。插件支持 Paseo `>=0.11.0 <1.0.0`。
 
 ## 安装前准备
 
@@ -8,18 +8,17 @@
 - Linux daemon 若要在公式中显示中文，需要安装 Droid Sans Fallback 或 Noto Sans CJK 字体。
 - 在 Paseo 的 **Settings → Plugins** 中启用插件功能。
 
-Paseo 插件是受信任且不受沙箱限制的代码。服务端插件可以访问 daemon 机器上的文件、进程、凭据和网络，客户端代码会在 Paseo 应用中运行。请只安装来自可信来源的压缩包。
+Paseo 插件是受信任且不受沙箱限制的代码。服务端插件可以访问 daemon 机器上的文件、进程、凭据和网络，客户端代码会在 Paseo 应用中运行。安装前请检查源码和依赖。
 
 ## 安装
 
-1. 解压 `math-timeline-0.1.2.zip` 或 `math-timeline-0.1.2.tar.gz`。
-2. 在 daemon 所在机器上执行：
+1. 在 daemon 所在机器上执行：
 
    ```bash
-   paseo plugin install /解压后的绝对路径/math-timeline
+   paseo plugin add git:jiuhao47/paseo-math-timeline
    ```
 
-3. 检查状态：
+2. 检查状态：
 
    ```bash
    paseo plugin ls math-timeline
@@ -31,10 +30,10 @@ Paseo 插件是受信任且不受沙箱限制的代码。服务端插件可以�
 
 ## 更新或卸载
 
-用新版文件替换原目录后执行：
+从 GitHub 获取并应用更新：
 
 ```bash
-paseo plugin reload math-timeline
+paseo plugin update math-timeline
 ```
 
 卸载命令：
@@ -43,4 +42,4 @@ paseo plugin reload math-timeline
 paseo plugin remove math-timeline
 ```
 
-目录安装被卸载后，解压出的源目录仍会保留，可自行删除。
+卸载会删除 Paseo 管理的 Git 工作目录；公开仓库和本地手动克隆的目录不受影响。

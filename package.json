@@ -1,6 +1,6 @@
 {
   "name": "paseo-plugin-math-timeline",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Local formula rendering for Paseo desktop and Android, with original Markdown and TeX copy.",
   "type": "module",

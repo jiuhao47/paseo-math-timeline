@@ -1,3 +1,4 @@
+// Modified in 2026 for the math-timeline adaptation; see NOTICE.
 import type { PluginClientContext } from "@getpaseo/plugin/client";
 
 function setupPlugin(client: PluginClientContext) {

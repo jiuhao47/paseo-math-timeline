@@ -1,3 +1,4 @@
+// Modified in 2026 for the math-timeline adaptation; see NOTICE.
 import type { PluginTimelineItemProps } from "@getpaseo/plugin/client";
 import { copyText, Icon, useToast } from "@getpaseo/plugin/client/react-native";
 import { memo, useCallback, useMemo, useState } from "react";

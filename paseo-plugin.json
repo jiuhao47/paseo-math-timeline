@@ -9,7 +9,8 @@
     [
       "npm",
       "ci",
-      "--ignore-scripts"
+      "--ignore-scripts",
+      "--include=dev"
     ],
     [
       "npm",

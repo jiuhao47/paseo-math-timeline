@@ -1,3 +1,4 @@
+// Modified in 2026 for the math-timeline adaptation; see NOTICE.
 import { MATH_RENDER_REVISION, type RenderInput, type RenderOutput } from "../shared/render.js";
 
 export type RenderCall = (input: RenderInput) => Promise<RenderOutput>;

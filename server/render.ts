@@ -1,3 +1,4 @@
+// Modified in 2026 for the math-timeline adaptation; see NOTICE.
 import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import { mathjax } from "mathjax-full/js/mathjax.js";
 import { TeX } from "mathjax-full/js/input/tex.js";

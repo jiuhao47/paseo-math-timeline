@@ -1,3 +1,4 @@
+// Modified in 2026 for the math-timeline adaptation; see NOTICE.
 import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { renderFormula } from "../server/render.js";
