@@ -69,15 +69,28 @@ try {
     expression: String.raw`\unknownCommand{x}`, display: false, color: "#fff",
   });
   assert.equal(invalid.ok, false);
+  const mermaid = await plugin.invoke("mermaid.render", {
+    source: "flowchart LR\n  A[Start] --> B[Done]",
+    colorScheme: "light",
+    density: 2,
+  });
+  assert.equal(mermaid.ok, true);
+  const unsafeMermaid = await plugin.invoke("mermaid.render", {
+    source: 'flowchart TD\n  A@{ img: "https://example.invalid/image.png" }',
+    colorScheme: "dark",
+    density: 1,
+  });
+  assert.deepEqual(unsafeMermaid, { ok: false, reason: "invalid" });
   await mkdir(path.join(root, ".smoke"), { recursive: true });
   await writeFile(path.join(root, ".smoke/formula.png"), Buffer.from(formula.png, "base64"));
+  await writeFile(path.join(root, ".smoke/mermaid.png"), Buffer.from(mermaid.png, "base64"));
   await writeFile(path.join(root, ".smoke/client-bundle.js"), plugin.bundles.clientBundle);
-  cleanup();
+  await cleanup();
   assert.ok([...registrations.values()].every((items) => items.length === 0));
   console.log(JSON.stringify({ compiler: `installed Paseo ${plugin.cliVersion}`, manifest: plugin.id,
     clientBytes: plugin.bundles.clientBundle.length, incrementalProjections: projections,
     compiledServerRpc: "passed", malformedFallback: "passed", cleanup: "passed",
-    formula: ".smoke/formula.png" }));
+    formula: ".smoke/formula.png", mermaid: ".smoke/mermaid.png" }));
 } finally {
   await plugin.cleanup();
 }

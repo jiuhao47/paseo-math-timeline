@@ -1,4 +1,4 @@
-import { access, chmod, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, chmod, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -6,6 +6,7 @@ import { chromiumExecutablePath } from "../server/generated/chromium.js";
 import {
   chromiumLaunchArguments,
   createChromiumMermaidRuntime,
+  MermaidRuntimeRenderError,
 } from "../server/chromium-runtime.js";
 
 const flowchart = "flowchart LR\n  A[Start] --> B[Done]";
@@ -82,6 +83,36 @@ esac
       expect(light.svg).not.toBe(dark.svg);
     } finally {
       await runtime.close();
+    }
+  }, 20_000);
+
+  it("keeps the browser alive after a Mermaid syntax error", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "math-timeline-launch-count-"));
+    const wrapper = path.join(directory, "chromium");
+    const counter = path.join(directory, "launches");
+    const quotedChromium = chromiumExecutablePath.replaceAll("'", "'\\''");
+    const quotedCounter = counter.replaceAll("'", "'\\''");
+    await writeFile(
+      wrapper,
+      `#!/bin/sh
+printf 'launch\\n' >> '${quotedCounter}'
+exec '${quotedChromium}' --no-sandbox "$@"
+`,
+    );
+    await chmod(wrapper, 0o700);
+
+    const runtime = createChromiumMermaidRuntime({ executablePath: wrapper });
+    try {
+      await expect(
+        runtime.render({ source: "flowchart LR\n  A[", colorScheme: "light" }),
+      ).rejects.toBeInstanceOf(MermaidRuntimeRenderError);
+      await expect(
+        runtime.render({ source: flowchart, colorScheme: "light" }),
+      ).resolves.toMatchObject({ width: expect.any(Number), height: expect.any(Number) });
+      expect((await readFile(counter, "utf8")).trim().split("\n")).toHaveLength(1);
+    } finally {
+      await runtime.close();
+      await rm(directory, { recursive: true, force: true });
     }
   }, 20_000);
 

@@ -32,6 +32,10 @@ export class MermaidRuntimeTimeoutError extends Error {
   override readonly name = "MermaidRuntimeTimeoutError";
 }
 
+export class MermaidRuntimeRenderError extends Error {
+  override readonly name = "MermaidRuntimeRenderError";
+}
+
 export function chromiumLaunchArguments(
   profileDirectory: string,
   runningAsRoot = process.getuid?.() === 0,
@@ -366,7 +370,9 @@ export function createChromiumMermaidRuntime(
       if (!wrapped || typeof wrapped !== "object") throw new Error("Mermaid returned no value");
       if (Reflect.get(wrapped, "ok") !== true) {
         const detail = Reflect.get(wrapped, "error");
-        throw new Error(typeof detail === "string" ? detail : "Mermaid render failed");
+        throw new MermaidRuntimeRenderError(
+          typeof detail === "string" ? detail : "Mermaid render failed",
+        );
       }
       const value = Reflect.get(wrapped, "value");
       const svg = readString(value, "svg");
@@ -386,7 +392,7 @@ export function createChromiumMermaidRuntime(
     try {
       return await Promise.race([work, deadline]);
     } catch (error) {
-      await closeInstance();
+      if (!(error instanceof MermaidRuntimeRenderError)) await closeInstance();
       throw error;
     } finally {
       if (timer) clearTimeout(timer);
