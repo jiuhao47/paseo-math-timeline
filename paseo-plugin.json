@@ -1,7 +1,7 @@
 {
   "id": "math-timeline",
   "name": "Math timeline",
-  "description": "在聊天中显示数学公式，支持桌面和 Android，并保留 Markdown / LaTeX 源码复制。",
+  "description": "在聊天中本地显示数学公式和混合 Mermaid，支持桌面与 Android，并保留完整源码复制。",
   "requirements": {
     "paseo": ">=0.11.0 <1.0.0"
   },

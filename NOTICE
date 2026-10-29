@@ -9,18 +9,24 @@ Paseo is Copyright 2025-present Mohamed Boudra, Apache-2.0.
 The build-time stable Markdown node-key adaptation follows:
 https://github.com/getpaseo/paseo/blob/c43df5d4c398571f62584b4ad5a629b5fd3b4599/patches/react-native-markdown-display%2B7.0.2.patch
 
-The Mermaid render state, request coalescing, and portable viewport geometry
+The Mermaid render state, request coalescing, portable viewport geometry and viewer behavior
 adapt Paseo's Apache-2.0 implementations at commit
 ab10a6694ccf068959d1a6b67b6c915e21a9fe91:
 https://github.com/getpaseo/paseo/tree/ab10a6694ccf068959d1a6b67b6c915e21a9fe91/packages/app/src/components
 
 Runtime dependency licenses remain in their npm packages and generated bundles:
 react-native-markdown-display (MIT), markdown-it (MIT), MathJax (Apache-2.0),
-resvg (MPL-2.0), and their respective dependencies. The unmodified resvg WASM
+Mermaid 11.16.0 (MIT), Playwright 1.61.1 (Apache-2.0), resvg (MPL-2.0),
+and their respective dependencies. The unmodified resvg WASM
 binary is embedded during installation; its source is available at
 https://github.com/thx/resvg-js/tree/v2.6.2 and https://github.com/linebender/resvg.
 
-Local adaptation: math-timeline, 2026-10-19.
+Playwright downloads a matching Chromium distribution during installation. That
+binary is not committed to this repository; Chromium's BSD-style license and its
+third-party notices accompany the downloaded distribution.
+
+Local adaptation: math-timeline, 2026-10-29.
 Based on https://github.com/q5m-ai/paseo-math at ccfcd9ac0bf5e5e6819a1bec2a2da8b466fb503c.
 Changes: Paseo 0.11 compatibility, local identity, preview panel, lifecycle cleanup,
-standard boxed equation presentation, and current-runtime verification.
+standard boxed equation presentation, local Mermaid rasterization and viewer,
+and current-runtime verification.

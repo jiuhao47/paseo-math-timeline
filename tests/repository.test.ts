@@ -63,8 +63,43 @@ describe("public repository contract", () => {
     const contributing = read("CONTRIBUTING.md");
     expect(contributing).toContain("npm ci --ignore-scripts");
     expect(contributing).toContain("npm run build");
+    expect(contributing).toContain("npm run browser:install");
     expect(contributing).toContain("npm run typecheck");
     expect(contributing).toContain("npm test");
+    expect(contributing).toContain("npm run smoke:browser");
+  });
+
+  test("documents local mixed Mermaid rendering and viewer tradeoffs", () => {
+    const readme = read("README.md");
+    for (const phrase of [
+      "mixed Mermaid and TeX",
+      "Playwright Chromium",
+      "stays local",
+      "raster PNG",
+      "high zoom",
+      "selectable Mermaid source",
+    ]) {
+      expect(readme).toContain(phrase);
+    }
+
+    const install = read("INSTALL.zh-CN.md");
+    expect(install).toContain("npm run browser:install");
+    expect(install).toContain("Chromium");
+    expect(install).toContain("Mermaid 源码只在本地");
+
+    const overview = read("OVERVIEW.md");
+    for (const phrase of [
+      "Mermaid + TeX",
+      "缩放按钮",
+      "Ctrl/Cmd + 滚轮",
+      "双击复位",
+      "双指捏合",
+      "全屏",
+      "高倍缩放",
+      "回退为可选择的源码",
+    ]) {
+      expect(overview).toContain(phrase);
+    }
   });
 
   test("license and upstream lineage remain visible", () => {
@@ -74,6 +109,10 @@ describe("public repository contract", () => {
     expect(notice).toContain(
       "ccfcd9ac0bf5e5e6819a1bec2a2da8b466fb503c",
     );
+    expect(notice).toContain("Mermaid 11.16.0");
+    expect(notice).toContain("Playwright 1.61.1");
+    expect(notice).toContain("Chromium");
+    expect(notice).toContain("viewport geometry and viewer behavior");
   });
 
   test("modified upstream source files carry change notices", () => {
@@ -97,10 +136,19 @@ describe("public repository contract", () => {
     expect(workflow).toContain("node-version: 22");
     expect(workflow).toContain("fonts-noto-cjk");
     expect(workflow).toContain("npm ci --ignore-scripts");
+    expect(workflow).toContain("playwright install --with-deps chromium");
     expect(workflow).toContain("npm run build");
     expect(workflow).toContain("npm run typecheck");
     expect(workflow).toContain("npm test");
+    expect(workflow).toContain("npm run smoke");
+    expect(workflow).toContain("npm run smoke:browser");
     expect(workflow).toContain("npm audit --audit-level=high");
+  });
+
+  test("approved design records implementation status", () => {
+    expect(
+      read("docs/superpowers/specs/2026-10-29-plugin-local-mermaid-design.md"),
+    ).toContain("Implementation status: complete");
   });
 
   test("Dependabot covers npm and GitHub Actions", () => {

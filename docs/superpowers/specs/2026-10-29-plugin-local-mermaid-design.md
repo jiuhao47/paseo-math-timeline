@@ -1,5 +1,7 @@
 # Local Mermaid rendering design
 
+Implementation status: complete for the plugin implementation and automated verification on 2026-10-29. Installed-runtime and physical Android observations remain verification records, not changes to the decisions below.
+
 ## Intent
 
 Fix mixed Markdown messages that contain both TeX and fenced Mermaid without changing Paseo core. The math plugin will continue to own only assistant messages that contain recognized math. When one of those messages also contains a `mermaid` fence, the plugin will render the diagram locally instead of degrading it to a code block.

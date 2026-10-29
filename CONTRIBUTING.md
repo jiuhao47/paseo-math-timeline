@@ -8,12 +8,13 @@ Use Node.js 22 and install the exact locked dependency graph without running dep
 
 ```bash
 npm ci --ignore-scripts
+npm run browser:install
 npm run build
 npm run typecheck
 npm test
 ```
 
-The build creates `client/generated/` and `server/generated/`. Do not commit those directories, `node_modules/`, `.smoke/`, `.paseo-sdk/`, or TypeScript build-info files.
+The browser command downloads Playwright's pinned Chromium. On a clean Linux CI host, install its OS packages and browser together with `npx playwright install --with-deps chromium`. The build creates `client/generated/` and `server/generated/`. Do not commit those directories, browser binaries, `node_modules/`, `.smoke/`, `.paseo-sdk/`, or TypeScript build-info files.
 
 For compiler and browser integration checks, install a compatible Paseo CLI and run:
 
@@ -22,7 +23,7 @@ npm run smoke
 npm run smoke:browser
 ```
 
-`smoke:browser` covers wide and compact web layouts, not native Android behavior. Changes that affect client layout should also be checked on an Android device before claiming Android validation.
+`smoke:browser` covers wide and compact web layouts plus mixed Mermaid/TeX controls, theme changes, source mode, and fullscreen behavior. It writes ignored screenshots under `.smoke/`; inspect them when changing rendering or layout. It does not establish native Android behavior, so relevant changes should also be checked on an Android device before claiming Android validation.
 
 ## Pull requests
 
