@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import MarkdownIt from "markdown-it";
 import type { Token } from "markdown-it";
 import { hasMath, markdownMath } from "../shared/markdown-math.js";
+import { mathMessageSchema } from "../shared/message.js";
 import { compactEquationTags, normalizeTex } from "../shared/tex.js";
 
 function parse(source: string): Token[] {
@@ -29,6 +30,16 @@ function text(source: string): string {
 }
 
 describe("raw-source math within Markdown", () => {
+  it("preserves the timeline phase in validated plugin data", () => {
+    expect(
+      mathMessageSchema.parse({ text: "$x$", phase: "streaming" }),
+    ).toEqual({ text: "$x$", phase: "streaming" });
+    expect(mathMessageSchema.safeParse({ text: "$x$" }).success).toBe(false);
+    expect(
+      mathMessageSchema.safeParse({ text: "$x$", phase: "waiting" }).success,
+    ).toBe(false);
+  });
+
   it("realigns currency without losing later formulas or prose formatting", () => {
     const source =
       "Fees $.65, $-9 or $+13; $8+$12; $240 (tax included). **Use** $u$ and $v$.";

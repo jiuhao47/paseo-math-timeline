@@ -47,12 +47,15 @@ try {
       const result = transform({ item: { type: "assistant_message", text }, phase: "streaming" });
       if (result) {
         assert.equal(result.items.length, 1);
-        assert.equal(schema.parse(result.items[0].data).text, text);
+        assert.deepEqual(schema.parse(result.items[0].data), {
+          text,
+          phase: "streaming",
+        });
         projections++;
       }
     }
     const result = transform({ item: { type: "assistant_message", text: source }, phase: "complete" });
-    assert.equal(result.items[0].data.text, source);
+    assert.deepEqual(result.items[0].data, { text: source, phase: "complete" });
   }
   for (const text of ["没有公式", "价格 $20 和 $30", "`$hidden$`", "$$\nunclosed"]) {
     assert.equal(transform({ item: { type: "assistant_message", text }, phase: "complete" }), undefined);

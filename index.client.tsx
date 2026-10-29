@@ -21,7 +21,7 @@ function setupPlugin(client: PluginClientContext) {
   }), client.addTimelineTransformer({
     id: "assistant-math",
     query: { itemType: "assistant_message" },
-    transform({ item }) {
+    transform({ item, phase }) {
       const remembered = objects.get(item);
       let result =
         remembered?.text === item.text
@@ -47,7 +47,7 @@ function setupPlugin(client: PluginClientContext) {
             type: "plugin" as const,
             kind: "math-message",
             version: 1,
-            data: { text: item.text },
+            data: { text: item.text, phase },
           },
         ],
       };

@@ -56,7 +56,12 @@ export function MathPreview({ theme, host, layout }: PluginWorkspacePanelProps) 
       <View style={{ borderTopWidth: 1, borderColor: colors.border, paddingTop: 12 }}>
         <MathMessageView agentId="math-preview" timestamp={new Date(0)}
           theme={theme} host={host} layout={layout}
-          item={{ type: "plugin", kind: "math-message", version: 1, data: { text } }} />
+          item={{
+            type: "plugin",
+            kind: "math-message",
+            version: 1,
+            data: { text, phase: "complete" },
+          }} />
       </View>
     </ScrollView>
   );
