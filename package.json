@@ -42,7 +42,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
-    "@babel/plugin-transform-classes": "7.28.6",
+    "@babel/plugin-transform-classes": "8.0.8",
     "@getpaseo/plugin": "0.11.2",
     "@types/node": "^22.0.0",
     "@types/react": "~19.2.0",
