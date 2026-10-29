@@ -11,7 +11,7 @@ import {
   MermaidRuntimeTimeoutError,
   type ChromiumMermaidRuntime,
 } from "./chromium-runtime.js";
-import { fallbackFont } from "./fallback-font.js";
+import { mermaidFontSet } from "./fallback-font.js";
 import { rasterizeSvg } from "./resvg.js";
 
 const MAX_SOURCE_LENGTH = 50_000;
@@ -157,12 +157,12 @@ export function createMermaidRenderer(
         colorScheme: input.colorScheme,
       });
       validateBrowserOutput(browser.svg, browser.width, browser.height, input.density);
-      const font = fallbackFont();
+      const font = mermaidFontSet();
       if (!font) throw new Error("No local font is available for Mermaid labels");
       const pngBytes = await rasterize(browser.svg, {
         fitTo: { mode: "zoom", value: input.density },
         font: {
-          fontBuffers: [font.buffer],
+          fontBuffers: font.buffers,
           defaultFontFamily: font.family,
           serifFamily: font.family,
           sansSerifFamily: font.family,

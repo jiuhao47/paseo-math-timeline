@@ -51,6 +51,34 @@ const DOUBLE_TAP_MS = 300;
 const DOUBLE_TAP_DISTANCE = 24;
 const RASTER_DENSITIES = [1, 2, 4, 8] as const;
 const MAX_RASTER_PIXELS = 16_000_000;
+export const INITIAL_RASTER_DENSITY = 1;
+
+export interface NativeTouchPoint {
+  locationX?: number;
+  locationY?: number;
+  pageX?: number;
+  pageY?: number;
+}
+
+export function viewportPointFromTouch(
+  touch: NativeTouchPoint,
+  viewportOrigin: ViewportPoint | null,
+): ViewportPoint {
+  if (
+    viewportOrigin &&
+    Number.isFinite(touch.pageX) &&
+    Number.isFinite(touch.pageY)
+  ) {
+    return {
+      x: touch.pageX! - viewportOrigin.x,
+      y: touch.pageY! - viewportOrigin.y,
+    };
+  }
+  return {
+    x: touch.locationX ?? touch.pageX ?? 0,
+    y: touch.locationY ?? touch.pageY ?? 0,
+  };
+}
 
 function midpoint(points: readonly DiagramTouch[]): ViewportPoint {
   return {
@@ -196,4 +224,14 @@ export function rasterDensityForScale(
     if (density <= desired && density <= maximum) return density;
   }
   return null;
+}
+
+export function nextRasterDensity(
+  currentDensity: number,
+  scale: number,
+  deviceScale: number,
+  dimensions: ViewportSize,
+): (typeof RASTER_DENSITIES)[number] | null {
+  const next = rasterDensityForScale(scale, deviceScale, dimensions);
+  return next && next > currentDensity ? next : null;
 }

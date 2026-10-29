@@ -4,6 +4,7 @@ import {
   Image,
   Modal,
   Pressable,
+  ScrollView,
   Text,
   View,
   type StyleProp,
@@ -78,15 +79,21 @@ export const MermaidFullscreen = memo(function MermaidFullscreen({
               backgroundColor: colors.surface1,
             }}
           >
-            <Text
-              selectable
-              style={[
-                sourceStyle,
-                { flex: 1, color: colors.foreground, fontFamily: "monospace" },
-              ]}
+            <ScrollView
+              contentContainerStyle={{ paddingRight: 52 }}
+              style={{ flex: 1 }}
+              testID="mermaid-fullscreen-source-scroll"
             >
-              {diagram.source}
-            </Text>
+              <Text
+                selectable
+                style={[
+                  sourceStyle,
+                  { color: colors.foreground, fontFamily: "monospace" },
+                ]}
+              >
+                {diagram.source}
+              </Text>
+            </ScrollView>
             <View
               style={{
                 position: "absolute",

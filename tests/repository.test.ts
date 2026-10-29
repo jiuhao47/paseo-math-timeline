@@ -136,6 +136,7 @@ describe("public repository contract", () => {
     expect(workflow).toContain("node-version: 22");
     expect(workflow).toContain("fonts-noto-cjk");
     expect(workflow).toContain("npm ci --ignore-scripts");
+    expect(workflow).toContain("npm install --global @getpaseo/cli@0.13.2");
     expect(workflow).toContain("playwright install --with-deps chromium");
     expect(workflow).toContain("npm run build");
     expect(workflow).toContain("npm run typecheck");

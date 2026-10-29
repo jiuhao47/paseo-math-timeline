@@ -214,6 +214,10 @@ describe("bounded Mermaid rendering", () => {
           throw new Error("Expected bundled font buffers");
         }
         expect(options.font.fontBuffers.length).toBeGreaterThan(0);
+        expect(options.font.defaultFontFamily).not.toBe("Droid Sans Fallback");
+        if (options.font.fontBuffers.length === 1) {
+          expect(options.font.defaultFontFamily).toMatch(/Noto|PingFang|YaHei/i);
+        }
         densities.push(options.fitTo.value);
         return new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
       },

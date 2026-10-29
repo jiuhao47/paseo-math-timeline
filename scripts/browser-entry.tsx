@@ -9,6 +9,7 @@ import { sampleMarkdown } from "../shared/samples";
 declare const window: any;
 declare const document: any;
 const contributions: Record<string, any[]> = {};
+let currentHostId = "browser-smoke";
 const register = (key: string) => (item: any) => {
   (contributions[key] ||= []).push(item);
   return () => contributions[key].splice(contributions[key].indexOf(item), 1);
@@ -21,6 +22,8 @@ const plugin = (0, eval)(window.pluginBundle)((name: string) => {
   if (name === "@getpaseo/plugin") return sdk;
   if (name === "@getpaseo/plugin/client") return {
     useRpc: (contract: any) => async (input: any) => {
+      window.mermaidRpcCalls = (window.mermaidRpcCalls || 0) + (contract.name === "mermaid.render" ? 1 : 0);
+      if (currentHostId === "offline") throw new Error("RPC unavailable");
       const response = await fetch("/render", { method: "POST",
         headers: { "Content-Type": "application/json" }, body: JSON.stringify({ method: contract.name, input }) });
       if (!response.ok) throw new Error("RPC unavailable");
@@ -65,13 +68,14 @@ $$
 $$
 
 其中，$\theta$ 表示模型参数。`;
+const longMermaidMarkdown = `~~~mermaid\nflowchart LR\n  A[Start] --> B[Done]\n${Array.from({ length: 120 }, (_, index) => `  %% source line ${index + 1}`).join("\n")}\n~~~\n\n$x$`;
 const root = createRoot(document.getElementById("root"));
 function draw() {
   const result = contributions.transformer[0].transform({ item: { type: "assistant_message", text: current }, phase });
   const Component = contributions.renderer[0].Component;
   document.body.style.background = colors.surface0;
   root.render(result ? <Component agentId="browser-smoke" timestamp={new Date(0)}
-    item={result.items[0]} theme={{ colors }} host={{ id: "browser-smoke", label: "Local" }}
+    item={result.items[0]} theme={{ colors }} host={{ id: currentHostId, label: "Local" }}
     layout={{ compact: window.innerWidth < 600, platform: "web" }} /> : <ReactNative.Text>{current}</ReactNative.Text>);
 }
 window.setMathSource = (value: string, nextPhase: "streaming" | "complete" = "streaming") => {
@@ -80,6 +84,9 @@ window.setMathSource = (value: string, nextPhase: "streaming" | "complete" = "st
   draw();
 };
 window.setMathTheme = (value: string) => { colors = value === "dark" ? dark : light; draw(); };
+window.setMathHost = (value: string) => { currentHostId = value; draw(); };
 window.sampleMarkdown = sampleMarkdown;
 window.mixedMarkdown = mixedMarkdown;
+window.longMermaidMarkdown = longMermaidMarkdown;
+window.mermaidRpcCalls = 0;
 draw();

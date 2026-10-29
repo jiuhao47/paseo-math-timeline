@@ -177,6 +177,17 @@ type BrowserInstance = {
   cdp: CdpPipe;
   profileDirectory: string;
   sessionId: string;
+  cleanup?: Promise<void>;
+};
+
+type LaunchToken = {
+  cancelled: boolean;
+  current: BrowserInstance | null;
+};
+
+type PendingLaunch = {
+  promise: Promise<BrowserInstance>;
+  token: LaunchToken;
 };
 
 const MAX_CHROMIUM_STDERR_LENGTH = 64 * 1024;
@@ -221,6 +232,28 @@ async function waitForExit(child: ChildProcess): Promise<void> {
   await new Promise<void>((resolve) => child.once("exit", () => resolve()));
 }
 
+function isRunning(child: ChildProcess): boolean {
+  return child.exitCode === null && child.signalCode === null;
+}
+
+async function waitForExitWithin(
+  child: ChildProcess,
+  timeoutMs: number,
+): Promise<boolean> {
+  if (!isRunning(child)) return true;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      waitForExit(child).then(() => true),
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => resolve(false), timeoutMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 async function removeProfileDirectory(profileDirectory: string): Promise<void> {
   await rm(profileDirectory, {
     recursive: true,
@@ -237,11 +270,42 @@ export function createChromiumMermaidRuntime(
   const runtimeHtml = options.runtimeHtml ?? generatedRuntimeHtml;
   const renderTimeoutMs = options.renderTimeoutMs ?? 5_000;
   let instance: BrowserInstance | null = null;
-  let launching: Promise<BrowserInstance> | null = null;
+  let launching: PendingLaunch | null = null;
   let sequence: Promise<void> = Promise.resolve();
 
-  async function launchOnce(disableSandbox: boolean): Promise<BrowserInstance> {
+  function cleanProfile(current: BrowserInstance): Promise<void> {
+    return (current.cleanup ??= removeProfileDirectory(current.profileDirectory));
+  }
+
+  async function terminateInstance(
+    current: BrowserInstance,
+    graceful: boolean,
+  ): Promise<void> {
+    if (graceful && isRunning(current.child)) {
+      void current.cdp.send("Browser.close").catch(() => undefined);
+      await waitForExitWithin(current.child, 150);
+    }
+    if (isRunning(current.child)) {
+      current.child.kill("SIGTERM");
+      await waitForExitWithin(current.child, 150);
+    }
+    if (isRunning(current.child)) {
+      current.child.kill("SIGKILL");
+      await waitForExitWithin(current.child, 150);
+    }
+    current.cdp.dispose();
+    await cleanProfile(current);
+  }
+
+  async function launchOnce(
+    disableSandbox: boolean,
+    token: LaunchToken,
+  ): Promise<BrowserInstance> {
     const profileDirectory = await mkdtemp(path.join(tmpdir(), "math-timeline-chromium-"));
+    if (token.cancelled) {
+      await removeProfileDirectory(profileDirectory);
+      throw new Error("Chromium launch cancelled");
+    }
     const child = spawn(
       executablePath,
       chromiumLaunchArguments(profileDirectory, process.getuid?.() === 0, disableSandbox),
@@ -252,7 +316,14 @@ export function createChromiumMermaidRuntime(
     const readStderr = collectStderr(child);
     const cdp = new CdpPipe(child);
     const current: BrowserInstance = { child, cdp, profileDirectory, sessionId: "" };
+    token.current = current;
+    child.once("exit", () => {
+      if (instance === current) instance = null;
+      if (token.current === current) token.current = null;
+      void cleanProfile(current).catch(() => undefined);
+    });
     try {
+      if (token.cancelled) throw new Error("Chromium launch cancelled");
       const context = await cdp.send("Target.createBrowserContext", {
         disposeOnDetach: true,
       });
@@ -301,51 +372,60 @@ export function createChromiumMermaidRuntime(
       }
       return current;
     } catch (error) {
-      cdp.dispose(error instanceof Error ? error : new Error(String(error)));
-      if (child.exitCode === null) child.kill();
-      await waitForExit(child).catch(() => undefined);
-      await removeProfileDirectory(profileDirectory);
+      await terminateInstance(current, false).catch(() => undefined);
       throw launchError(error, readStderr());
     }
   }
 
-  async function launch(): Promise<BrowserInstance> {
+  async function launch(token: LaunchToken): Promise<BrowserInstance> {
     await access(executablePath);
     const runningAsRoot = process.getuid?.() === 0;
-    if (runningAsRoot) return launchOnce(true);
+    if (runningAsRoot) return launchOnce(true, token);
     try {
-      return await launchOnce(false);
+      return await launchOnce(false, token);
     } catch (error) {
       if (!isMissingChromiumSandbox(error)) throw error;
-      return launchOnce(true);
+      return launchOnce(true, token);
     }
   }
 
   async function getInstance(): Promise<BrowserInstance> {
-    if (instance) return instance;
-    launching ??= launch();
+    if (instance && isRunning(instance.child)) return instance;
+    if (instance) {
+      const stale = instance;
+      instance = null;
+      await terminateInstance(stale, false).catch(() => undefined);
+    }
+    if (!launching) {
+      const token: LaunchToken = { cancelled: false, current: null };
+      launching = { token, promise: launch(token) };
+    }
+    const pending = launching;
     try {
-      instance = await launching;
+      const current = await pending.promise;
+      if (pending.token.cancelled || !isRunning(current.child)) {
+        await terminateInstance(current, false).catch(() => undefined);
+        throw new Error("Chromium launch cancelled");
+      }
+      instance = current;
       return instance;
     } finally {
-      launching = null;
+      if (launching === pending) launching = null;
     }
   }
 
-  async function closeInstance(): Promise<void> {
-    const pendingLaunch = launching;
-    let current = instance;
+  async function closeInstance(graceful = true): Promise<void> {
+    const pending = launching;
+    if (pending) pending.token.cancelled = true;
+    const current = instance;
+    const starting = pending?.token.current ?? null;
     instance = null;
-    if (!current && pendingLaunch) current = await pendingLaunch.catch(() => null);
     launching = null;
-    if (!current) return;
-    try {
-      await current.cdp.send("Browser.close").catch(() => undefined);
-      if (current.child.exitCode === null) current.child.kill();
-      await waitForExit(current.child).catch(() => undefined);
-    } finally {
-      current.cdp.dispose();
-      await removeProfileDirectory(current.profileDirectory);
+    const targets = new Set<BrowserInstance>();
+    if (current) targets.add(current);
+    if (starting) targets.add(starting);
+    for (const target of targets) {
+      await terminateInstance(target, graceful).catch(() => undefined);
     }
   }
 
@@ -392,7 +472,7 @@ export function createChromiumMermaidRuntime(
     try {
       return await Promise.race([work, deadline]);
     } catch (error) {
-      if (!(error instanceof MermaidRuntimeRenderError)) await closeInstance();
+      if (!(error instanceof MermaidRuntimeRenderError)) await closeInstance(false);
       throw error;
     } finally {
       if (timer) clearTimeout(timer);
@@ -409,7 +489,7 @@ export function createChromiumMermaidRuntime(
       return operation;
     },
     close() {
-      const operation = sequence.then(() => closeInstance());
+      const operation = sequence.then(() => closeInstance(true));
       sequence = operation.then(
         () => undefined,
         () => undefined,

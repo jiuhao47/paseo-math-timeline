@@ -13,9 +13,12 @@ import {
   zoomContentAtPoint,
 } from "../client/diagram/geometry.js";
 import {
+  INITIAL_RASTER_DENSITY,
   createDiagramGestureState,
+  nextRasterDensity,
   rasterDensityForScale,
   reduceTouches,
+  viewportPointFromTouch,
 } from "../client/diagram/gesture-model.js";
 
 const viewport = { width: 800, height: 600 };
@@ -138,6 +141,21 @@ describe("portable diagram viewport geometry", () => {
 });
 
 describe("touch gesture reducer", () => {
+  it("uses local coordinates for a stationary native viewport touch target", () => {
+    expect(
+      viewportPointFromTouch(
+        { locationX: 12, locationY: 18, pageX: 240, pageY: 360 },
+        null,
+      ),
+    ).toEqual({ x: 12, y: 18 });
+    expect(
+      viewportPointFromTouch(
+        { locationX: 12, locationY: 18, pageX: 240, pageY: 360 },
+        { x: 40, y: 60 },
+      ),
+    ).toEqual({ x: 200, y: 300 });
+  });
+
   it("moves from one touch to a focal pinch without jumping", () => {
     let state = createDiagramGestureState({ scale: 2, x: 0, y: 0 });
     state = reduceTouches(
@@ -259,6 +277,13 @@ describe("touch gesture reducer", () => {
 });
 
 describe("raster density selection", () => {
+  it("starts at a bounded density and upgrades only after real dimensions exist", () => {
+    expect(INITIAL_RASTER_DENSITY).toBe(1);
+    expect(nextRasterDensity(1, 1, 3, { width: 400, height: 200 })).toBe(4);
+    expect(nextRasterDensity(1, 8, 2, { width: 2000, height: 1000 })).toBe(2);
+    expect(nextRasterDensity(2, 8, 2, { width: 2000, height: 1000 })).toBeNull();
+  });
+
   it("uses 1, 2, 4, and 8 density bands", () => {
     const dimensions = { width: 400, height: 200 };
     expect(rasterDensityForScale(1, 1, dimensions)).toBe(1);

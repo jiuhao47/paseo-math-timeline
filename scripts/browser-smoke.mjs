@@ -42,6 +42,16 @@ const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
 const errors = [];
 page.on("pageerror", (error) => errors.push(error.message));
 try {
+  await page.addInitScript(() => {
+    const NativeResizeObserver = window.ResizeObserver;
+    window.resizeObserverCreations = 0;
+    window.ResizeObserver = class extends NativeResizeObserver {
+      constructor(callback) {
+        super(callback);
+        window.resizeObserverCreations++;
+      }
+    };
+  });
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(() => document.querySelectorAll('img[src^="data:image/png"]').length >= 7);
   await page.waitForFunction(() => [...document.querySelectorAll('img[src^="data:image/png"]')].every((image) => image.complete && image.naturalWidth > 0));
@@ -71,6 +81,10 @@ try {
   for (const label of ["Zoom in", "Zoom out", "Reset zoom", "View source", "Fullscreen"]) {
     assert.equal(await page.getByRole("button", { name: label, exact: true }).count(), 1);
   }
+  const observersBeforeIdle = await page.evaluate(() => window.resizeObserverCreations);
+  await page.waitForTimeout(300);
+  const observersAfterIdle = await page.evaluate(() => window.resizeObserverCreations);
+  assert.ok(observersAfterIdle - observersBeforeIdle <= 1, `idle viewport created ${observersAfterIdle - observersBeforeIdle} observers`);
 
   const inlineCanvas = page.getByTestId("mermaid-inline-canvas");
   const inlineContent = page.getByTestId("mermaid-inline-content");
@@ -149,6 +163,31 @@ try {
   assert.equal(await page.getByTestId("mermaid-fullscreen").count(), 0);
   await page.getByRole("button", { name: "Copy source", exact: true }).click();
   assert.equal(await page.evaluate(() => window.copiedSource === window.mixedMarkdown), true);
+
+  const callsBeforeHostChange = await page.evaluate(() => window.mermaidRpcCalls);
+  await page.evaluate(() => window.setMathHost("offline"));
+  await page.waitForFunction((before) => window.mermaidRpcCalls > before, callsBeforeHostChange);
+  await page.waitForFunction(() => document.querySelectorAll('[data-testid="mermaid-image"]').length === 0);
+  assert.ok((await page.locator("#root").innerText()).includes("flowchart LR"));
+  await page.evaluate(() => window.setMathHost("browser-smoke"));
+  await diagram.waitFor();
+
+  await page.evaluate(() => window.setMathSource(window.longMermaidMarkdown, "complete"));
+  await diagram.waitFor();
+  await page.getByTestId("mermaid-inline-canvas").hover();
+  await page.getByRole("button", { name: "Fullscreen", exact: true }).click();
+  const fullscreen = page.getByTestId("mermaid-fullscreen");
+  await fullscreen.getByRole("button", { name: "View source", exact: true }).click();
+  const sourceScroll = page.getByTestId("mermaid-fullscreen-source-scroll");
+  await sourceScroll.waitFor();
+  const scrollMetrics = await sourceScroll.evaluate((element) => ({
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+  }));
+  assert.ok(scrollMetrics.scrollHeight > scrollMetrics.clientHeight);
+  assert.ok(["auto", "scroll"].includes(scrollMetrics.overflowY));
+  await page.getByRole("button", { name: "Close fullscreen", exact: true }).click();
 
   const streaming = String.raw`开头 $x^2$，流式分式 $$\frac{1}{2}$$，结尾文字。`;
   for (let length = 1; length <= streaming.length; length++) {

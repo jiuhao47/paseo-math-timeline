@@ -22,7 +22,10 @@ import {
 import { containsUnsafeMermaidSource } from "../../shared/mermaid-source.js";
 import { renderMermaid, type MermaidRenderInput } from "../../shared/mermaid.js";
 import { INLINE_SCALE_LIMITS } from "../diagram/geometry.js";
-import { rasterDensityForScale } from "../diagram/gesture-model.js";
+import {
+  INITIAL_RASTER_DENSITY,
+  nextRasterDensity,
+} from "../diagram/gesture-model.js";
 import { DiagramViewport } from "../diagram/viewport.js";
 import {
   mermaidRenderKey,
@@ -70,9 +73,15 @@ export const MermaidDiagram = memo(function MermaidDiagram({
   const callRef = useRef(call);
   callRef.current = call;
   const window = useWindowDimensions();
-  const initialDensity =
-    rasterDensityForScale(1, window.scale || 1, { width: 1, height: 1 }) ?? 1;
-  const [density, setDensity] = useState(initialDensity);
+  const densityIdentity = `${hostId}\u0000${colorScheme}\u0000${source}`;
+  const [densitySelection, setDensitySelection] = useState({
+    identity: densityIdentity,
+    density: INITIAL_RASTER_DENSITY,
+  });
+  const density =
+    densitySelection.identity === densityIdentity
+      ? densitySelection.density
+      : INITIAL_RASTER_DENSITY;
   const input = useMemo<MermaidRenderInput>(
     () => ({ source, colorScheme, density }),
     [colorScheme, density, source],
@@ -173,12 +182,32 @@ export const MermaidDiagram = memo(function MermaidDiagram({
   const requestDensity = useCallback(
     (scale: number) => {
       const current = visibleRef.current;
-      if (!current) return;
-      const next = rasterDensityForScale(scale, window.scale || 1, current);
-      if (next && next > density) setDensity(next);
+      if (
+        !current ||
+        current.source !== source ||
+        current.colorScheme !== colorScheme
+      ) {
+        return;
+      }
+      const next = nextRasterDensity(
+        density,
+        scale,
+        window.scale || 1,
+        current,
+      );
+      if (next) {
+        setDensitySelection((selection) =>
+          selection.identity === densityIdentity && selection.density >= next
+            ? selection
+            : { identity: densityIdentity, density: next },
+        );
+      }
     },
-    [density, window.scale],
+    [colorScheme, density, densityIdentity, source, window.scale],
   );
+  useEffect(() => {
+    if (visible) requestDensity(1);
+  }, [requestDensity, visible]);
   const onImageError = useCallback(() => setFailedImage(imageKey), [imageKey]);
   const sourceView = (
     <View

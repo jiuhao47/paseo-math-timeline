@@ -31,6 +31,7 @@ import {
 import {
   createDiagramGestureState,
   reduceTouches,
+  viewportPointFromTouch,
   type DiagramGestureState,
   type DiagramTouch,
 } from "./gesture-model.js";
@@ -64,26 +65,36 @@ type NativeTouch = {
   pageY?: number;
 };
 
-function eventTouches(event: GestureResponderEvent): DiagramTouch[] {
+function eventTouches(
+  event: GestureResponderEvent,
+  viewportOrigin: ViewportPoint | null,
+): DiagramTouch[] {
   const native = event.nativeEvent as typeof event.nativeEvent & {
     touches?: readonly NativeTouch[];
   };
   return [...(native.touches ?? [])].map((touch, index) => ({
     id: touch.identifier ?? index,
-    x: touch.locationX ?? touch.pageX ?? 0,
-    y: touch.locationY ?? touch.pageY ?? 0,
+    ...viewportPointFromTouch(touch, viewportOrigin),
   }));
 }
 
-function changedPoint(event: GestureResponderEvent): ViewportPoint {
+function changedPoint(
+  event: GestureResponderEvent,
+  viewportOrigin: ViewportPoint | null,
+): ViewportPoint {
   const native = event.nativeEvent as typeof event.nativeEvent & {
     changedTouches?: readonly NativeTouch[];
   };
   const touch = native.changedTouches?.[0];
-  return {
-    x: touch?.locationX ?? touch?.pageX ?? native.locationX ?? 0,
-    y: touch?.locationY ?? touch?.pageY ?? native.locationY ?? 0,
-  };
+  return viewportPointFromTouch(
+    touch ?? {
+      locationX: native.locationX,
+      locationY: native.locationY,
+      pageX: native.pageX,
+      pageY: native.pageY,
+    },
+    viewportOrigin,
+  );
 }
 
 export const DiagramViewport = memo(function DiagramViewport({
@@ -178,7 +189,11 @@ export const DiagramViewport = memo(function DiagramViewport({
       applyGestureState(
         reduceTouches(
           gestureRef.current,
-          { type: "touches", touches: eventTouches(event), reportedPointers },
+          {
+            type: "touches",
+            touches: eventTouches(event, null),
+            reportedPointers,
+          },
           { viewport, fittedContent, limits },
         ),
       );
@@ -192,9 +207,9 @@ export const DiagramViewport = memo(function DiagramViewport({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (event) => {
-          const point = changedPoint(event);
+          const point = changedPoint(event, null);
           tapRef.current = { point, moved: false };
-          updateTouches(event, eventTouches(event).length);
+          updateTouches(event, eventTouches(event, null).length);
         },
         onPanResponderMove: (event, gesture) => {
           if (tapRef.current && Math.hypot(gesture.dx, gesture.dy) > 3) {
@@ -203,14 +218,18 @@ export const DiagramViewport = memo(function DiagramViewport({
           updateTouches(event, gesture.numberActiveTouches);
         },
         onPanResponderRelease: (event) => {
-          updateTouches(event, eventTouches(event).length);
+          updateTouches(event, eventTouches(event, null).length);
           const tap = tapRef.current;
           tapRef.current = null;
           if (!tap?.moved && viewport && fittedContent) {
             applyGestureState(
               reduceTouches(
                 gestureRef.current,
-                { type: "tap", point: changedPoint(event), timestamp: Date.now() },
+                {
+                  type: "tap",
+                  point: changedPoint(event, null),
+                  timestamp: Date.now(),
+                },
                 { viewport, fittedContent, limits },
               ),
             );
@@ -223,6 +242,15 @@ export const DiagramViewport = memo(function DiagramViewport({
       }),
     [applyGestureState, fittedContent, limits, updateTouches, viewport],
   );
+
+  const updateViewport = useCallback((next: ViewportSize) => {
+    if (next.width <= 0 || next.height <= 0) return;
+    setViewport((current) =>
+      current?.width === next.width && current.height === next.height
+        ? current
+        : next,
+    );
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web") return;
@@ -251,17 +279,17 @@ export const DiagramViewport = memo(function DiagramViewport({
       onControlsVisible: setControlsVisible,
       onTouchInput: () => setControlsVisible(true),
     });
-    const detachResize = observeWebViewport(canvasRef.current, setViewport);
+    const detachResize = observeWebViewport(canvasRef.current, updateViewport);
     return () => {
       detachEvents();
       detachResize();
     };
-  }, [fittedContent, onPressOutsideContent, reset, viewport, wheelActivation, zoomAt]);
+  }, [fittedContent, onPressOutsideContent, reset, updateViewport, viewport, wheelActivation, zoomAt]);
 
   const onLayout = useCallback((event: LayoutChangeEvent) => {
     const { width, height } = event.nativeEvent.layout;
-    if (width > 0 && height > 0) setViewport({ width, height });
-  }, []);
+    updateViewport({ width, height });
+  }, [updateViewport]);
 
   return (
     <View
@@ -283,6 +311,7 @@ export const DiagramViewport = memo(function DiagramViewport({
         accessibilityLabel="Mermaid diagram viewport"
         focusable
         onLayout={onLayout}
+        pointerEvents={Platform.OS === "web" ? "auto" : "box-only"}
         ref={canvasRef}
         style={{
           flex: 1,

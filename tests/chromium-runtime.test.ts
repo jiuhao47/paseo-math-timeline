@@ -119,15 +119,58 @@ exec '${quotedChromium}' --no-sandbox "$@"
   }, 20_000);
 
   it("invalidates a render that exceeds its deadline", async () => {
-    const runtime = createChromiumMermaidRuntime({ renderTimeoutMs: 1 });
+    const directory = await mkdtemp(path.join(tmpdir(), "math-timeline-slow-launch-"));
+    const wrapper = path.join(directory, "chromium");
+    await writeFile(wrapper, "#!/bin/sh\nsleep 2\nexit 1\n");
+    await chmod(wrapper, 0o700);
+    const runtime = createChromiumMermaidRuntime({
+      executablePath: wrapper,
+      renderTimeoutMs: 50,
+    });
+    const started = Date.now();
     try {
       await expect(
         runtime.render({ source: flowchart, colorScheme: "light" }),
       ).rejects.toMatchObject({ name: "MermaidRuntimeTimeoutError" });
+      expect(Date.now() - started).toBeLessThan(750);
     } finally {
       await runtime.close();
+      await rm(directory, { recursive: true, force: true });
     }
   });
+
+  it("relaunches before the first request after the cached browser exits", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "math-timeline-crash-relaunch-"));
+    const wrapper = path.join(directory, "chromium");
+    const counter = path.join(directory, "launches");
+    const pidFile = path.join(directory, "pid");
+    const quotedChromium = chromiumExecutablePath.replaceAll("'", "'\\''");
+    const quotedCounter = counter.replaceAll("'", "'\\''");
+    const quotedPid = pidFile.replaceAll("'", "'\\''");
+    await writeFile(
+      wrapper,
+      `#!/bin/sh
+printf 'launch\\n' >> '${quotedCounter}'
+printf '%s' "$$" > '${quotedPid}'
+exec '${quotedChromium}' --no-sandbox "$@"
+`,
+    );
+    await chmod(wrapper, 0o700);
+
+    const runtime = createChromiumMermaidRuntime({ executablePath: wrapper });
+    try {
+      await runtime.render({ source: flowchart, colorScheme: "light" });
+      process.kill(Number(await readFile(pidFile, "utf8")), "SIGKILL");
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      await expect(
+        runtime.render({ source: flowchart, colorScheme: "dark" }),
+      ).resolves.toMatchObject({ width: expect.any(Number), height: expect.any(Number) });
+      expect((await readFile(counter, "utf8")).trim().split("\n")).toHaveLength(2);
+    } finally {
+      await runtime.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  }, 30_000);
 
   it("closes idempotently and launches again for a later render", async () => {
     const runtime = createChromiumMermaidRuntime();

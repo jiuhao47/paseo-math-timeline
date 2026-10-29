@@ -219,7 +219,7 @@ const MemoizedMathMessage = memo(
           if (isMermaidFence(info)) {
             return (
               <MermaidDiagram
-                key={node.key}
+                key={`${node.key}:${host.id}`}
                 colors={colors}
                 colorScheme={diagramColorScheme(colors.surface0)}
                 hostId={host.id}
