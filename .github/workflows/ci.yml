@@ -20,6 +20,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Install CJK rendering font
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes fonts-noto-cjk
+
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
 

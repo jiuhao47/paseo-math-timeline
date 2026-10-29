@@ -64,6 +64,7 @@ describe("public repository contract", () => {
   test("continuous integration runs the public verification gates", () => {
     const workflow = read(".github/workflows/ci.yml");
     expect(workflow).toContain("node-version: 22");
+    expect(workflow).toContain("fonts-noto-cjk");
     expect(workflow).toContain("npm ci --ignore-scripts");
     expect(workflow).toContain("npm run build");
     expect(workflow).toContain("npm run typecheck");
