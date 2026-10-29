@@ -1,0 +1,58 @@
+{
+  "name": "paseo-plugin-math-timeline",
+  "version": "0.1.2",
+  "private": true,
+  "description": "Local formula rendering for Paseo desktop and Android, with original Markdown and TeX copy.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jiuhao47/paseo-math-timeline.git"
+  },
+  "homepage": "https://github.com/jiuhao47/paseo-math-timeline#readme",
+  "bugs": {
+    "url": "https://github.com/jiuhao47/paseo-math-timeline/issues"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke": "node --import tsx scripts/smoke.mjs",
+    "smoke:browser": "node --import tsx scripts/browser-smoke.mjs",
+    "smoke:live": "node --import tsx scripts/live-smoke.mjs"
+  },
+  "dependencies": {
+    "@resvg/resvg-wasm": "2.6.2",
+    "markdown-it": "15.0.3",
+    "mathjax-full": "3.2.2",
+    "react-native-markdown-display": "7.0.2"
+  },
+  "overrides": {
+    "react-native-markdown-display": {
+      "markdown-it": "$markdown-it"
+    },
+    "@xmldom/xmldom": "0.9.12",
+    "shell-quote": "1.12.0"
+  },
+  "devDependencies": {
+    "@babel/core": "7.29.7",
+    "@babel/plugin-transform-classes": "7.28.6",
+    "@getpaseo/plugin": "0.11.2",
+    "@types/node": "^22.0.0",
+    "@types/react": "~19.2.0",
+    "esbuild": "^0.25.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-web": "0.21.2",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "vite": "7.3.7",
+    "vitest": "^5.0.5",
+    "zod": "4.6.7",
+    "playwright": "^1.61.1"
+  }
+}
