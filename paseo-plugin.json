@@ -15,6 +15,11 @@
     [
       "npm",
       "run",
+      "browser:install"
+    ],
+    [
+      "npm",
+      "run",
       "build"
     ]
   ]

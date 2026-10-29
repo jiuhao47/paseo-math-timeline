@@ -45,6 +45,12 @@ describe("public repository contract", () => {
       "--ignore-scripts",
       "--include=dev",
     ]);
+    expect(manifest.build?.[1]).toEqual([
+      "npm",
+      "run",
+      "browser:install",
+    ]);
+    expect(manifest.build?.[2]).toEqual(["npm", "run", "build"]);
   });
 
   test("Git installation and contribution commands are documented", () => {

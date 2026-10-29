@@ -1,5 +1,4 @@
 // Modified in 2026 for the math-timeline adaptation; see NOTICE.
-import { initWasm, Resvg } from "@resvg/resvg-wasm";
 import { mathjax } from "mathjax-full/js/mathjax.js";
 import { TeX } from "mathjax-full/js/input/tex.js";
 import { SVG } from "mathjax-full/js/output/svg.js";
@@ -18,7 +17,7 @@ import "mathjax-full/js/input/tex/textmacros/TextMacrosConfiguration.js";
 import type { RenderInput, RenderOutput } from "../shared/render.js";
 import { compactEquationTags, normalizeTex } from "../shared/tex.js";
 import { fallbackFont } from "./fallback-font.js";
-import { wasmBase64 } from "./generated/wasm.js";
+import { rasterizeSvg } from "./resvg.js";
 
 const EM = 16;
 const DENSITY = 2;
@@ -30,7 +29,6 @@ const MAX_CACHE_BYTES = 8 * 1024 * 1024;
 const MAX_CACHE_ENTRIES = 128;
 const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
-let wasmReady: Promise<void> | undefined;
 
 class RenderFailure extends Error {
   constructor(readonly reason: "invalid" | "too-large") {
@@ -306,37 +304,24 @@ export async function renderFormula(input: RenderInput): Promise<RenderOutput> {
     cache.set(key, cached);
     return cached.output;
   }
-  // Await before allocating TeX trees so a burst during WASM startup retains
-  // inputs only. After this await rendering is synchronous and serialized.
-  await (wasmReady ??= initWasm(Buffer.from(wasmBase64, "base64")));
   const readyCached = cache.get(key);
   if (readyCached) return readyCached.output;
   try {
     const { svg, width, height, baseline, usesFont } = typeset(input);
     const font = usesFont ? fallbackFont() : null;
-    const renderer = new Resvg(svg, { font: {
+    const pngBytes = await rasterizeSvg(svg, { font: {
       fontBuffers: font ? [font.buffer] : [],
       ...(font ? { defaultFontFamily: font.family, serifFamily: font.family,
         sansSerifFamily: font.family, monospaceFamily: font.family } : {}),
     } });
-    try {
-      const image = renderer.render();
-      try {
-        const pngBytes = image.asPng();
-        if (Math.ceil(pngBytes.length / 3) * 4 > MAX_PNG_BASE64)
-          throw new RenderFailure("too-large");
-        const png = Buffer.from(
-          pngBytes.buffer,
-          pngBytes.byteOffset,
-          pngBytes.byteLength,
-        ).toString("base64");
-        return remember(key, { ok: true, png, width, height, baseline });
-      } finally {
-        image.free();
-      }
-    } finally {
-      renderer.free();
-    }
+    if (Math.ceil(pngBytes.length / 3) * 4 > MAX_PNG_BASE64)
+      throw new RenderFailure("too-large");
+    const png = Buffer.from(
+      pngBytes.buffer,
+      pngBytes.byteOffset,
+      pngBytes.byteLength,
+    ).toString("base64");
+    return remember(key, { ok: true, png, width, height, baseline });
   } catch (error) {
     return remember(key, {
       ok: false,
